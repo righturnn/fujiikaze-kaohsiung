@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<!--
+================================================================
+  MindAR 卡片 AR 範本（掃卡片 → 跳出動畫 → 點擊互動）
+================================================================
+
+【先測試】
+  1. 把這個檔案放到 HTTPS 網址上（相機必須在 HTTPS 下才能開），
+     例如 GitHub Pages：建一個 repo → 上傳 index.html → Settings → Pages 開啟。
+  2. 用手機打開網址，允許相機。
+  3. 對準官方範例卡片（用電腦螢幕打開這張圖即可）：
+     https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png
+
+【換成你自己的卡片】
+  1. 到 MindAR 圖像編譯器：https://hiukim.github.io/mind-ar-js-doc/tools/compile
+  2. 上傳你的卡片圖（可一次上傳多張）→ Start → 下載 targets.mind
+  3. 把 targets.mind 和 index.html 放在同一個資料夾
+  4. 把下方 imageTargetSrc 改成：imageTargetSrc: ./targets.mind
+  5. 依你的卡片比例調整 CARD_RATIO 區塊（高 ÷ 寬）
+
+【卡片選圖小技巧】
+  圖案細節多、對比強、不要大片純色或重複花紋，辨識會比較穩。
+
+【注意】
+  A-Frame 的 3D 文字 <a-text> 預設字型不支援中文，
+  所以中文內容放在下方的 HTML 資訊面板（#info-panel）裡。
+================================================================
+-->
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>卡片 AR 體驗</title>
+
+  <!-- A-Frame + MindAR（版本搭配好的組合，不要隨意只升其中一個） -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: system-ui, "PingFang TC", "Microsoft JhengHei", sans-serif; }
+
+    /* 掃描提示 */
+    #scan-hint {
+      position: fixed; left: 50%; bottom: 12%; transform: translateX(-50%);
+      z-index: 10; padding: 10px 18px; border-radius: 999px;
+      background: rgba(0,0,0,.6); color: #fff; font-size: 15px;
+      pointer-events: none; transition: opacity .3s;
+    }
+    #scan-hint.hidden { opacity: 0; }
+
+    /* 點擊後跳出的中文資訊面板 */
+    #info-panel {
+      position: fixed; left: 16px; right: 16px; bottom: 24px; z-index: 20;
+      background: #fff; color: #222; border-radius: 16px; padding: 18px 20px;
+      box-shadow: 0 8px 30px rgba(0,0,0,.3);
+      transform: translateY(140%); transition: transform .35s ease;
+    }
+    #info-panel.show { transform: translateY(0); }
+    #info-panel h2 { margin: 0 0 6px; font-size: 18px; }
+    #info-panel p  { margin: 0 0 14px; font-size: 14px; line-height: 1.6; color: #555; }
+    #info-panel .row { display: flex; gap: 10px; }
+    #info-panel a, #info-panel button {
+      flex: 1; text-align: center; padding: 10px; border-radius: 10px; border: 0;
+      font-size: 15px; text-decoration: none; cursor: pointer;
+    }
+    #info-panel a { background: #4f46e5; color: #fff; }
+    #info-panel button { background: #eee; color: #333; }
+  </style>
+</head>
+
+<body>
+  <div id="scan-hint">📷 請將鏡頭對準卡片</div>
+
+  <!-- ===== 中文資訊面板（點 3D 的「i」按鈕會打開）===== -->
+  <div id="info-panel">
+    <h2>歡迎來到 AR 世界！</h2>
+    <p>這裡可以放卡片的介紹文字、活動資訊或角色故事。點下方按鈕可以連到你的網站。</p>
+    <div class="row">
+      <a href="https://example.com" target="_blank" rel="noopener">了解更多</a>
+      <button id="close-panel">關閉</button>
+    </div>
+  </div>
+
+  <!--
+    imageTargetSrc：辨識用的 .mind 檔（換成 ./targets.mind 即可用自己的卡片）
+    maxTrack：同時追蹤幾張卡片
+    uiScanning: no → 使用上面自訂的掃描提示
+    filterMinCF / filterBeta：抖動 vs 跟手度，畫面抖可把 filterMinCF 調小
+  -->
+  <a-scene
+    mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind; maxTrack: 1; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001"
+    color-space="sRGB"
+    renderer="colorManagement: true; antialias: true"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+    cursor="fuse: false; rayOrigin: mouse"
+    raycaster="objects: .clickable; far: 10000">
+
+    <a-assets>
+      <!-- 要用自己的圖片 / 影片 / 音效 / 3D 模型就放這裡，例如：
+      <img id="tex-logo" src="./logo.png" crossorigin="anonymous" />
+      <video id="vid" src="./intro.mp4" preload="auto" loop playsinline webkit-playsinline crossorigin="anonymous"></video>
+      <a-asset-item id="model" src="./character.glb"></a-asset-item>
+      <audio id="sfx" src="./pop.mp3" preload="auto"></audio>
+      -->
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <!-- ===== 卡片 #0（targetIndex 對應編譯 .mind 時上傳的順序，從 0 開始）=====
+         座標說明：卡片寬 = 1 單位，中心在 (0,0,0)，z 正方向是「朝向鏡頭／浮出卡片」 -->
+    <a-entity id="target0" mindar-image-target="targetIndex: 0">
+
+      <!-- 整組內容：偵測到卡片時「彈出」 -->
+      <a-entity id="content0" scale="0 0 0"
+        animation__enter="property: scale; from: 0 0 0; to: 1 1 1; dur: 700; easing: easeOutElastic; startEvents: ar-enter"
+        animation__exit="property: scale; to: 0 0 0; dur: 150; easing: easeInQuad; startEvents: ar-exit">
+
+        <!-- 半透明底板（CARD_RATIO：範例卡片高寬比 0.552，換卡片時改 height） -->
+        <a-plane width="1" height="0.552" color="#4f46e5" opacity="0.25"></a-plane>
+
+        <!-- 主角：會漂浮、自轉的寶石；點擊會跳一下 + 變色 -->
+        <a-entity id="hero" class="clickable" position="0 0 0.25"
+          animation__float="property: position; from: 0 0 0.22; to: 0 0 0.32; dir: alternate; loop: true; dur: 1400; easing: easeInOutSine"
+          animation__spin="property: rotation; from: 0 0 0; to: 0 360 0; loop: true; dur: 6000; easing: linear"
+          animation__jump="property: scale; from: 1 1 1; to: 1.5 1.5 1.5; dur: 220; dir: alternate; loop: 1; easing: easeOutQuad; startEvents: tapped">
+          <a-octahedron radius="0.13" color="#f59e0b" metalness="0.4" roughness="0.25"></a-octahedron>
+        </a-entity>
+
+        <!-- 環繞的小星星 -->
+        <a-entity position="0 0 0.25"
+          animation="property: rotation; to: 0 0 360; loop: true; dur: 4000; easing: linear">
+          <a-sphere radius="0.025" color="#fde68a" position="0.28 0 0"></a-sphere>
+          <a-sphere radius="0.02"  color="#a5b4fc" position="-0.28 0 0"></a-sphere>
+          <a-sphere radius="0.018" color="#f9a8d4" position="0 0.22 0"></a-sphere>
+        </a-entity>
+
+        <!-- 標題（3D 文字只支援英文；中文請放在 HTML 面板） -->
+        <a-text value="TAP ME!" align="center" color="#ffffff" width="1.6"
+          position="0 0.38 0.05"
+          animation="property: position; from: 0 0.36 0.05; to: 0 0.4 0.05; dir: alternate; loop: true; dur: 900; easing: easeInOutSine"></a-text>
+
+        <!-- 資訊按鈕：點了打開中文面板 -->
+        <a-entity id="info-btn" class="clickable" position="0.42 -0.2 0.06">
+          <a-circle radius="0.07" color="#ffffff"></a-circle>
+          <a-text value="i" align="center" color="#4f46e5" width="1.6" position="0 0 0.01"></a-text>
+        </a-entity>
+
+        <!-- ===== 可選：在卡片上播影片（取消註解並在 a-assets 放 #vid）=====
+        <a-video src="#vid" width="1" height="0.552" position="0 0 0.01"></a-video>
+        -->
+
+        <!-- ===== 可選：放 3D 動畫模型（.glb，模型自帶動畫會自動播放）=====
+        <a-gltf-model src="#model" position="0 0 0.1" rotation="90 0 0" scale="0.1 0.1 0.1"
+          animation-mixer></a-gltf-model>
+          ※ animation-mixer 需要另外引入 aframe-extras：
+          <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.5.0/dist/aframe-extras.min.js"></script>
+        -->
+      </a-entity>
+    </a-entity>
+
+    <!-- ===== 第二張卡片範例（.mind 裡有兩張圖、且 maxTrack 改成 2 時使用）=====
+    <a-entity mindar-image-target="targetIndex: 1">
+      <a-box color="#10b981" depth="0.1" height="0.2" width="0.2" position="0 0 0.1"
+        animation="property: rotation; to: 360 360 0; loop: true; dur: 3000; easing: linear"></a-box>
+    </a-entity>
+    -->
+  </a-scene>
+
+  <script>
+    const scene   = document.querySelector('a-scene');
+    const hint    = document.getElementById('scan-hint');
+    const panel   = document.getElementById('info-panel');
+    const target0 = document.getElementById('target0');
+    const content = document.getElementById('content0');
+    const hero    = document.getElementById('hero');
+    const infoBtn = document.getElementById('info-btn');
+
+    const heroColors = ['#f59e0b', '#ec4899', '#22c55e', '#3b82f6', '#a855f7'];
+    let colorIdx = 0;
+
+    // 偵測到卡片 → 隱藏提示、播放彈出動畫
+    target0.addEventListener('targetFound', () => {
+      hint.classList.add('hidden');
+      content.emit('ar-enter');
+      // 有音效的話：document.getElementById('sfx')?.play();
+      // 有影片的話：document.getElementById('vid')?.play();
+    });
+
+    // 卡片離開畫面 → 收起內容、顯示提示
+    target0.addEventListener('targetLost', () => {
+      hint.classList.remove('hidden');
+      content.emit('ar-exit');
+      panel.classList.remove('show');
+      // document.getElementById('vid')?.pause();
+    });
+
+    // 點主角：跳一下 + 換顏色
+    hero.addEventListener('click', () => {
+      hero.emit('tapped');
+      colorIdx = (colorIdx + 1) % heroColors.length;
+      hero.querySelector('a-octahedron').setAttribute('color', heroColors[colorIdx]);
+      if (navigator.vibrate) navigator.vibrate(30);
+    });
+
+    // 點「i」：打開中文資訊面板
+    infoBtn.addEventListener('click', () => panel.classList.add('show'));
+    document.getElementById('close-panel').addEventListener('click', () => panel.classList.remove('show'));
+
+    // 相機開不起來時給提示（最常見原因：不是 HTTPS，或沒允許相機權限）
+    scene.addEventListener('arError', () => {
+      hint.textContent = '⚠️ 無法開啟相機，請確認網址是 https 並允許相機權限';
+      hint.classList.remove('hidden');
+    });
+  </script>
+</body>
+</html>
